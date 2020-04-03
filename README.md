@@ -41,7 +41,8 @@ HatebuTagManager
 「HatebuTagManager」の使い方
 -------------------------------------------------------------------
 
-- ツール「HatebuTagManager」の最新バージョンは、［[Releases](https://github.com/isshiki/HatebuTagManager/releases)］からダウンロードしてください。ダウンロードした.zipファイルを展開して、フォルダー内の`HatebuTagManager.exe`ファイルを実行してください（Windows 10専用です）。
+- ツール「HatebuTagManager」の最新バージョンは、［[Releases](https://github.com/isshiki/HatebuTagManager/releases)］から「HatebuTagManager.～.zip
+」ファイルをダウンロードしてください。その.zipファイルを展開して、フォルダー内の`HatebuTagManager.exe`ファイルを実行してください（Windows 10専用です）。
 
 ![GUIツール画面](docs/hatebu-tag-manager.png)
 
