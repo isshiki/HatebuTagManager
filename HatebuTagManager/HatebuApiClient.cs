@@ -118,7 +118,7 @@ namespace HatebuTagManager
             CreateHttpClient();
 
             //var myjson = await client.GetStringAsync("http://n.hatena.com/applications/my.json");  // アプリケーション情報
-            // {"profile_image_url":"https://cdn.profile-image.st-hatena.com/users/misshiki/profile.gif","url_name":"misshiki","display_name":"いっしきまさひこ"}
+            // {"profile_image_url":"https://cdn.profile-image.st-hatena.com/users/{user-id}/profile.gif","url_name":"{user-id}","display_name":"{表示名}"}
 
             var jsonUserInfo = String.Empty;
             try
@@ -135,9 +135,9 @@ namespace HatebuTagManager
             var userName = String.Empty;
             try
             {
-                // {"is_oauth_evernote":false,"is_oauth_twitter":true,"name":"misshiki","plususer":false,"is_oauth_facebook":false,"is_oauth_mixi_check":false,"private":false}
+                // {"is_oauth_evernote":false,"is_oauth_twitter":true,"name":"{user-id}","plususer":false,"is_oauth_facebook":false,"is_oauth_mixi_check":false,"private":false}
                 var dynamicUserInfo = DynamicJson.Parse(jsonUserInfo);
-                userName = dynamicUserInfo.name;  // "misshiki";
+                userName = dynamicUserInfo.name;  // "{user-id}";
             }
             catch (Exception ex)
             {
@@ -236,12 +236,6 @@ namespace HatebuTagManager
             bookmarkList.Add(bkmark);
         }
 
-
-        private static string GetEscapeSequence(string s)
-        {
-            return new string(s.SelectMany(c => $"\\u{(int)c:X4}".ToArray()).ToArray());
-        }
-
         public async Task<string> ChangeTagName(string fromTagName, string toTagName, System.Windows.Controls.TextBlock txtblockProcStatus, CancellationToken cancelToken)
         {
             var fromTag = $"[{fromTagName}]";
@@ -293,7 +287,6 @@ namespace HatebuTagManager
 
                 var re = new Regex("\\[.*?\\]", RegexOptions.Singleline);
                 var commentText = re.Replace(bookmarkItem.CommentWithTags, "");
-                //var escapedCmnt = GetEscapeSequence(tagsText + commentText);
                 var encodedCmnt = Uri.EscapeDataString(tagsText + commentText);
 
                 //var parameters = new Dictionary<string, string>()
@@ -316,7 +309,7 @@ namespace HatebuTagManager
                         $"&comment={encodedCmnt}", // コンテンツのポストではなく、クエリパラメーターらしい...
                         //$"&tags={tagsText}" + // 上に含めておけば問題ない（というかどう表現すればいいの？）
                         //$"&private={(bookmarkItem.PrivateNotPublic ? "true" : "false")}",
-                        null);//content); // 一応コンテンツにも入れておくか...
+                        null);//content); // クエリパラメーターで指定するのでコンテンツは含めていない。
                     var resultJson = await response.Content.ReadAsStringAsync();
                     if (resultJson.IndexOf("comment_raw") != -1)
                     {
