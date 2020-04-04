@@ -21,16 +21,20 @@ namespace HatebuTagManager
 
     public partial class MainWindow : Window
     {
+        #region はてなブックマークAPIにアクセスするためのキー関連
         private const string PRIVATE_KEY_FILE_NAME = "@hatebu.key";
         private const string PRIVATE_KEY_FILE_PATH = "..\\..\\..\\" + PRIVATE_KEY_FILE_NAME;
         private const string TITLE_CONSUMER_KEY = "OAuth Consumer Key:";
         private const string TITLE_CONSUMER_SECRET = "OAuth Consumer Secret:";
+        #endregion
 
+        #region 出力ファイルとフォルダー名の定義
         private const string NAME_DATA_FOLDER = "HatebuTagManager";
         private const string NAME_DATA_FILE = "SearchedData.txt";
         private const string NAME_LOG_FILE = "ProcessedLog.txt";
+        #endregion
 
-
+        #region 実行状況を明示するための背景色ブラシ
         private static LinearGradientBrush todoBrush = new LinearGradientBrush(
             Color.FromRgb(255, 255, 255), Color.FromRgb(255, 0, 0), new Point(0, 0), new Point(1, 0));
         private static LinearGradientBrush doneBrush = new LinearGradientBrush(
@@ -39,13 +43,17 @@ namespace HatebuTagManager
             Color.FromRgb(255, 255, 255), Color.FromRgb(255, 0, 255), new Point(0, 0), new Point(1, 0));
         private static LinearGradientBrush oneModeBrush = new LinearGradientBrush(
             Color.FromRgb(255, 255, 255), Color.FromRgb(255, 255, 0), new Point(0, 0), new Point(1, 0));
+        #endregion
 
-        private HatebuApiClient apiClient;
+        private HatebuApiClient apiClient;      // はてなブックマークAPIクライアント
 
+        #region 処理尾の実行中／キャンセルを管理するオブジェクト
         public bool IsProcessing { get; set; }  // 処理を実行中かどうか
         private CancellationTokenSource tokenSource;
         private CancellationToken cancelToken;
+        #endregion
 
+        #region 初期化処理
 
         public MainWindow()
         {
@@ -65,14 +73,9 @@ namespace HatebuTagManager
             this.txtboxDataFolderPath.Text = Path.Combine(pathDesktop, NAME_DATA_FOLDER);
         }
 
-        private void btnSaveKeySecret_Click(object sender, RoutedEventArgs e)
-        {
-            var keyFilePath = Path.GetFullPath(PRIVATE_KEY_FILE_NAME);
-            var key = this.txtboxConsumerKey.Text;
-            var secret = this.txtboxConsumerSecret.Text;
-            File.WriteAllText(keyFilePath, $"OAuth Consumer Key: {key}\r\nOAuth Consumer Secret: {secret}", Encoding.UTF8);
-            MessageBox.Show($"KeyとSecretを、\n\n{keyFilePath}\n\nファイルに保存しました！ 次回から自動入力されます。");
-        }
+        #endregion
+
+        #region キー＆シークレットのロードと保存
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -106,6 +109,19 @@ namespace HatebuTagManager
                 }
             }
         }
+
+        private void btnSaveKeySecret_Click(object sender, RoutedEventArgs e)
+        {
+            var keyFilePath = Path.GetFullPath(PRIVATE_KEY_FILE_NAME);
+            var key = this.txtboxConsumerKey.Text;
+            var secret = this.txtboxConsumerSecret.Text;
+            File.WriteAllText(keyFilePath, $"OAuth Consumer Key: {key}\r\nOAuth Consumer Secret: {secret}", Encoding.UTF8);
+            MessageBox.Show($"KeyとSecretを、\n\n{keyFilePath}\n\nファイルに保存しました！ 次回から自動入力されます。");
+        }
+
+        #endregion
+
+        #region 【ステップ1】ログイン認証
 
         private async void BtnRequestPIN_Click(object sender, RoutedEventArgs e)
         {
@@ -176,64 +192,9 @@ namespace HatebuTagManager
             }
         }
 
-        private async void BtnGetAllBookmaks_Click(object sender, RoutedEventArgs e)
-        {
-            string dataFolderPath = GetDataDirectory();
-            if (dataFolderPath == null) return;
+        #endregion
 
-
-            this.txtblockApiStatus.Text = "★★★すべてのブックマークを取得しています。お待ちください。★★★";
-            this.txtblockApiStatus.Background = allModeBrush;
-
-            var info = await apiClient.GetMyAllBookmarks();
-            if (String.IsNullOrEmpty(info))
-            {
-                if (apiClient.LastError != null)
-                {
-                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}");
-                }
-            }
-            else
-            {
-                this.txtblockApiStatus.Text = "すべてのブックマークを取得しました。";
-                this.txtblockApiStatus.Background = doneBrush;
-
-                var dataFilePath = Path.Combine(dataFolderPath, NAME_DATA_FILE);
-                File.WriteAllText(dataFilePath, info, Encoding.UTF8);
-                this.txtboxGotResult.Text = $"情報量が多すぎる場合があるため別ファイルに保存しました。\n{dataFilePath}\nを参照してください。";
-                if (this.chckboxOpenDataFolder.IsChecked == true)
-                {
-                    AppUtility.OpenByTextEditor(dataFilePath);
-                }
-                //MessageBox.Show("成功！");
-            }
-        }
-
-        private async void BtnGetOneBookmak_Click(object sender, RoutedEventArgs e)
-        {
-            this.txtblockApiStatus.Text = "★★★1つのブックマークを取得しています。お待ちください。★★★";
-            this.txtblockApiStatus.Background = oneModeBrush;
-
-
-            var url = this.txtboxOneUrl.Text;
-            var info = await apiClient.GetMyOneBookmark(url);
-            if (String.IsNullOrEmpty(info))
-            {
-                if (apiClient.LastError != null)
-                {
-                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}");
-                }
-            }
-            else
-            {
-                this.txtblockApiStatus.Text = "1つのブックマークを取得しました。";
-                this.txtblockApiStatus.Background = doneBrush;
-                var result = Regex.Unescape(info);
-                this.txtboxGotResult.Text = result;
-                btnGetOneToAllBookmark.IsEnabled = true;
-                //MessageBox.Show("成功！");
-            }
-        }
+        #region 【ステップ2】における、データフォルダー関連
 
         private void BtnOpenFolder_Click(object sender, RoutedEventArgs e)
         {
@@ -267,6 +228,73 @@ namespace HatebuTagManager
             return dataFolderPath;
         }
 
+        #endregion
+
+        #region 【ステップ2】全ブックマークデータの取得
+
+        private async void BtnGetAllBookmaks_Click(object sender, RoutedEventArgs e)
+        {
+            string dataFolderPath = GetDataDirectory();
+            if (dataFolderPath == null) return;
+
+
+            this.txtblockApiStatus.Text = "★★★すべてのブックマークを取得しています。お待ちください。★★★";
+            this.txtblockApiStatus.Background = allModeBrush;
+
+            var info = await apiClient.GetMyAllBookmarks();
+            if (String.IsNullOrEmpty(info))
+            {
+                if (apiClient.LastError != null)
+                {
+                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}");
+                }
+            }
+            else
+            {
+                this.txtblockApiStatus.Text = "すべてのブックマークを取得しました。";
+                this.txtblockApiStatus.Background = doneBrush;
+
+                var dataFilePath = Path.Combine(dataFolderPath, NAME_DATA_FILE);
+                File.WriteAllText(dataFilePath, info, Encoding.UTF8);
+                this.txtboxGotResult.Text = $"情報量が多すぎる場合があるため別ファイルに保存しました。\n{dataFilePath}\nを参照してください。";
+                if (this.chckboxOpenDataFolder.IsChecked == true)
+                {
+                    AppUtility.OpenByTextEditor(dataFilePath);
+                }
+                //MessageBox.Show("成功！");
+            }
+        }
+
+        #endregion
+
+        #region 【ステップ2】における、1つのブックマーク関連
+
+        private async void BtnGetOneBookmak_Click(object sender, RoutedEventArgs e)
+        {
+            this.txtblockApiStatus.Text = "★★★1つのブックマークを取得しています。お待ちください。★★★";
+            this.txtblockApiStatus.Background = oneModeBrush;
+
+
+            var url = this.txtboxOneUrl.Text;
+            var info = await apiClient.GetMyOneBookmark(url);
+            if (String.IsNullOrEmpty(info))
+            {
+                if (apiClient.LastError != null)
+                {
+                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}");
+                }
+            }
+            else
+            {
+                this.txtblockApiStatus.Text = "1つのブックマークを取得しました。";
+                this.txtblockApiStatus.Background = doneBrush;
+                var result = Regex.Unescape(info);
+                this.txtboxGotResult.Text = result;
+                btnGetOneToAllBookmark.IsEnabled = true;
+                //MessageBox.Show("成功！");
+            }
+        }
+
         private void BtnGetOneToAllBookmark_Click(object sender, RoutedEventArgs e)
         {
             apiClient.ResetOneBookmark();
@@ -286,6 +314,10 @@ namespace HatebuTagManager
             }
             btnGetOneToAllBookmark.IsEnabled = false;
         }
+
+        #endregion
+
+        #region 【ステップ3】タグの一括更新｜複数ブックマークの一括削除
 
         private async void buttonChangeTag_Click(object sender, RoutedEventArgs e)
         {
@@ -344,6 +376,10 @@ namespace HatebuTagManager
             FinalizeProc(info);
         }
 
+        #endregion
+
+        #region 【ステップ3】における、処理実行の前処理／後処理
+
         private bool PrepareProc(string timeString, string procName)
         {
             var retUserChoice = MessageBox.Show($"※この処理を実行するとやり直しできないので慎重に選んでください。\n\n" +
@@ -360,14 +396,6 @@ namespace HatebuTagManager
             IsProcessing = true;
 
             return true;
-        }
-
-        private string GetLogFileNmae()
-        {
-            var dataFolderPath = this.txtboxDataFolderPath.Text;
-            var nowString = DateTime.Now.ToString("yyyyMMddHHmmss");
-            var dataFilePath = Path.Combine(dataFolderPath, nowString + NAME_LOG_FILE);
-            return dataFilePath;
         }
 
         private void FinalizeProc(string info)
@@ -390,6 +418,18 @@ namespace HatebuTagManager
             
             IsProcessing = false;
         }
+
+        private string GetLogFileNmae()
+        {
+            var dataFolderPath = this.txtboxDataFolderPath.Text;
+            var nowString = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var dataFilePath = Path.Combine(dataFolderPath, nowString + NAME_LOG_FILE);
+            return dataFilePath;
+        }
+
+        #endregion
+
+        #region 【ステップ3】における、処理実行途中でのキャンセル処理
 
         private async void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -428,6 +468,8 @@ namespace HatebuTagManager
                 await Task.Delay(100);
             }
         }
+
+        #endregion
 
     }
 }

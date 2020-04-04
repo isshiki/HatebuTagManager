@@ -15,29 +15,40 @@ namespace HatebuTagManager
 {
     public class HatebuApiClient
     {
+        #region 数値関連の定数定義
         private const int WAIT_SEC_PER_CALL = 3;
         private const int PROC_SEC_PER_CALL = 2;
-        const string API_VERSION = "1";
-        readonly string oAuthConsumerKey;
-        readonly string oAuthConsumerSecret;
-        OAuthAuthorizer oAuthAuthorizer;
-        RequestToken oAuthRequestToken;
-        AccessToken oAuthAccessToken;
+        private const string API_VERSION = "1";
+        #endregion
 
-        private HttpClient client;
+        #region はてなブックマークAPIのOAuth関連オブジェクト
+        private readonly string oAuthConsumerKey;
+        private readonly string oAuthConsumerSecret;
+        private OAuthAuthorizer oAuthAuthorizer;
+        private RequestToken oAuthRequestToken;
+        private AccessToken oAuthAccessToken;
+        #endregion
 
+        private HttpClient client;   // HTTP処理クライアント
+
+        #region ブックマーク保存オブジェクト
         private List<Bookmark> listBookmarks = new List<Bookmark>();
         private List<Bookmark> oneBookmark = new List<Bookmark>();
-        private string jsonAllBookmarks = String.Empty; 
+        private string jsonAllBookmarks = String.Empty;
+        #endregion
 
+        #region エラー情報オブジェクト
         public Exception LastError;
         public String LastErrTitle;
+        #endregion
 
-        public string CurrentUserName { get; set; }
+        public string CurrentUserName { get; set; }  // 処理実行中のはてな「ユーザーID」
 
+        #region 初期化処理
 
         private HatebuApiClient()
         {
+            // 引数なしのコンストラクターは許容しない
         }
 
         public HatebuApiClient(string consumerKey, string consumerSecret)
@@ -46,6 +57,10 @@ namespace HatebuTagManager
             this.oAuthConsumerKey = consumerKey;
             this.oAuthConsumerSecret = consumerSecret;
         }
+
+        #endregion
+
+        #region 【ステップ1】ログイン認証
 
         public async Task<string> RequestPIN()
         {
@@ -109,6 +124,10 @@ namespace HatebuTagManager
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
             // dispose不要
         }
+
+        #endregion
+
+        #region 【ステップ2】全ブックマークデータの取得
 
         public async Task<string> GetMyAllBookmarks()
         {
@@ -198,6 +217,10 @@ namespace HatebuTagManager
             }
         }
 
+        #endregion
+
+        #region 【ステップ2】における、1つのブックマークの取得
+
         public async Task<string> GetMyOneBookmark(string url)
         {
             ResetOneBookmark();
@@ -236,6 +259,10 @@ namespace HatebuTagManager
             bookmarkList.Add(bkmark);
         }
 
+        #endregion
+
+        #region 【ステップ3】タグの一括更新
+
         public async Task<string> ChangeTagName(string fromTagName, string toTagName, System.Windows.Controls.TextBlock txtblockProcStatus, CancellationToken cancelToken)
         {
             var fromTag = $"[{fromTagName}]";
@@ -252,7 +279,7 @@ namespace HatebuTagManager
             var doneUrls = new List<string>();
             var errorUrls = new List<string>();
 
-            var targetBkmkList = listBookmarks.Where(x => x.Tags.Contains(fromTag));
+            var targetBkmkList = targetBookmarks.Where(x => x.Tags.Contains(fromTag));
             var counter = 0;
             var allnum = targetBkmkList.Count();
             foreach (var bookmarkItem in targetBkmkList)
@@ -341,85 +368,9 @@ namespace HatebuTagManager
             return sbResult.ToString();
         }
 
-        private static string RenameToHatebu(Bookmark bookmarkItem)
-        {
-            return bookmarkItem.Url.Replace("http://", "＠＠＠").Replace("https://", "＠＠＠").Replace("＠＠＠", "https://b.hatena.ne.jp/entry/s/");
-        }
+        #endregion
 
-        private static string RenameToSearch(Bookmark bookmarkItem, string userID)
-        {
-            var encTitle = UrlHatebuEncode(bookmarkItem.Title);
-            return $"https://b.hatena.ne.jp/{userID}/search?q={encTitle}";
-        }
-
-        public static string UrlHatebuEncode(string stringToEscape)
-        {
-            var sbEncoded = new StringBuilder();
-            foreach (var chr in stringToEscape)
-            {
-                switch (chr)
-                {
-                    case '!': sbEncoded.Append("%21"); continue;
-                    case '(': sbEncoded.Append("%28"); continue;
-                    case ')': sbEncoded.Append("%29"); continue;
-                    case '_': sbEncoded.Append("_"); continue;
-                    case '-': sbEncoded.Append("-"); continue;
-                    case '*': sbEncoded.Append("*"); continue;
-                    case '.': sbEncoded.Append("."); continue;
-                    case ' ': sbEncoded.Append("+"); continue;
-                    case '?': sbEncoded.Append("%3F"); continue;
-                    case '#': sbEncoded.Append("%23"); continue;
-                    case '$': sbEncoded.Append("%24"); continue;
-                    case '%': sbEncoded.Append("%25"); continue;
-                    case '&': sbEncoded.Append("%26"); continue;
-                    case '|': sbEncoded.Append("%7C"); continue;
-                    case '@': sbEncoded.Append("%40"); continue;
-                    case '\\': sbEncoded.Append("%5C"); continue;
-                    case '/': sbEncoded.Append("%2F"); continue;
-                    case '[': sbEncoded.Append("%5B"); continue;
-                    case ']': sbEncoded.Append("%5D"); continue;
-                    case '{': sbEncoded.Append("%7B"); continue;
-                    case '}': sbEncoded.Append("%7D"); continue;
-                    case '<': sbEncoded.Append("%3C"); continue;
-                    case '>': sbEncoded.Append("%3E"); continue;
-                    case '+': sbEncoded.Append("%2B"); continue;
-                    case '=': sbEncoded.Append("%3D"); continue;
-                    case '^': sbEncoded.Append("%5E"); continue;
-                    case '~': sbEncoded.Append("%7E"); continue;
-                    case '"': sbEncoded.Append("%22"); continue;
-                    case '\'': sbEncoded.Append("%27"); continue;
-                    case '`': sbEncoded.Append("%60"); continue;
-                    case ';': sbEncoded.Append("%3B"); continue;
-                    case ':': sbEncoded.Append("%3A"); continue;
-                    case ',': sbEncoded.Append("%2C"); continue;
-                }
-
-                var chrString = Uri.EscapeUriString(chr.ToString());
-                sbEncoded.Append(chrString);
-            }
-
-            return sbEncoded.ToString();
-        }
-
-        private List<Bookmark> GetTargetBookmarks()
-        {
-            List<Bookmark> targetBookmarks = null;
-            if ((oneBookmark != null) && (oneBookmark.Count() > 0))
-            {
-                targetBookmarks = oneBookmark;
-            }
-            else if ((listBookmarks == null) || (listBookmarks.Count() <= 0))
-            {
-                LastErrTitle = "先に、すべてのブックマーク、もしくは1つのブックマークを取得してください。";
-                LastError = new Exception(LastErrTitle);
-                return null;
-            }
-            else
-            {
-                targetBookmarks = listBookmarks;
-            }
-            return targetBookmarks;
-        }
+        #region 【ステップ3】タグによる、複数ブックマークの一括削除
 
         public async Task<string> DeleteBookmarksByTagName(string targetTagName, System.Windows.Controls.TextBlock txtblockProcStatus, CancellationToken cancelToken)
         {
@@ -436,7 +387,7 @@ namespace HatebuTagManager
             var doneUrls = new List<string>();
             var errorUrls = new List<string>();
 
-            var targetBkmkList = listBookmarks.Where(x => x.Tags.Contains(targetTag));
+            var targetBkmkList = targetBookmarks.Where(x => x.Tags.Contains(targetTag));
             var counter = 0;
             var allnum = targetBkmkList.Count();
             foreach (var bookmarkItem in targetBkmkList)
@@ -497,6 +448,10 @@ namespace HatebuTagManager
 
             return sbResult.ToString();
         }
+
+        #endregion
+
+        #region 【ステップ3】日付による、複数ブックマークの一括削除
 
         public async Task<string> DeleteBookmarksByOlderDate(DateTime olderThanThisDate, System.Windows.Controls.TextBlock txtblockProcStatus, CancellationToken cancelToken)
         {
@@ -591,6 +546,10 @@ namespace HatebuTagManager
             return sbResult.ToString();
         }
 
+        #endregion
+
+        #region 【ステップ3】における、ブックマークモード（すべて／1つ）の判定／初期化と、それに基づくブックマーク取得
+
         public bool modeOneBookmark()
         {
             if ((oneBookmark == null) || (oneBookmark.Count() <= 0))
@@ -626,14 +585,40 @@ namespace HatebuTagManager
             oneBookmark.Clear();
         }
 
+        private List<Bookmark> GetTargetBookmarks()
+        {
+            List<Bookmark> targetBookmarks = null;
+            if ((oneBookmark != null) && (oneBookmark.Count() > 0))
+            {
+                targetBookmarks = oneBookmark;
+            }
+            else if ((listBookmarks == null) || (listBookmarks.Count() <= 0))
+            {
+                LastErrTitle = "先に、すべてのブックマーク、もしくは1つのブックマークを取得してください。";
+                LastError = new Exception(LastErrTitle);
+                return null;
+            }
+            else
+            {
+                targetBookmarks = listBookmarks;
+            }
+            return targetBookmarks;
+        }
+
         public string GetAllBookmarksJson()
         {
             return jsonAllBookmarks;
         }
 
+        #endregion
+
+        #region 【ステップ3】における、予測実行時間の計算機能
+
         public string EstimateTimeForChangingTag(string tagName)
         {
-            int count = listBookmarks.Count(x => x.Tags.Contains($"[{tagName}]"));
+            var targetBookmarks = GetTargetBookmarks();
+            if (targetBookmarks == null) return String.Empty;
+            int count = targetBookmarks.Count(x => x.Tags.Contains($"[{tagName}]"));
             int secPerCall = WAIT_SEC_PER_CALL + PROC_SEC_PER_CALL;
             int totalSeconds = count * secPerCall;
             var TotalTimeSpan = new TimeSpan(0, 0, totalSeconds);
@@ -643,13 +628,81 @@ namespace HatebuTagManager
 
         public string EstimateTimeForAllItems()
         {
-            int count = listBookmarks.Count();
+            var targetBookmarks = GetTargetBookmarks();
+            if (targetBookmarks == null) return String.Empty;
+            int count = targetBookmarks.Count();
             int secPerCall = WAIT_SEC_PER_CALL + PROC_SEC_PER_CALL;
             int totalSeconds = count * secPerCall;
             var TotalTimeSpan = new TimeSpan(0, 0, totalSeconds);
             var timespanString = TotalTimeSpan.ToString("'最長で'hh'時'mm'分'ss'秒間'");
             return timespanString;
         }
+
+        #endregion
+
+        #region 【ステップ3】における、ログ保存用のはてぶURLの取得機能
+
+        private static string RenameToHatebu(Bookmark bookmarkItem)
+        {
+            return bookmarkItem.Url.Replace("http://", "＠＠＠").Replace("https://", "＠＠＠").Replace("＠＠＠", "https://b.hatena.ne.jp/entry/s/");
+        }
+
+        private static string RenameToSearch(Bookmark bookmarkItem, string userID)
+        {
+            var encTitle = UrlHatebuEncode(bookmarkItem.Title);
+            return $"https://b.hatena.ne.jp/{userID}/search?q={encTitle}";
+        }
+
+        public static string UrlHatebuEncode(string stringToEscape)
+        {
+            var sbEncoded = new StringBuilder();
+            foreach (var chr in stringToEscape)
+            {
+                switch (chr)
+                {
+                    case '!': sbEncoded.Append("%21"); continue;
+                    case '(': sbEncoded.Append("%28"); continue;
+                    case ')': sbEncoded.Append("%29"); continue;
+                    case '_': sbEncoded.Append("_"); continue;
+                    case '-': sbEncoded.Append("-"); continue;
+                    case '*': sbEncoded.Append("*"); continue;
+                    case '.': sbEncoded.Append("."); continue;
+                    case ' ': sbEncoded.Append("+"); continue;
+                    case '?': sbEncoded.Append("%3F"); continue;
+                    case '#': sbEncoded.Append("%23"); continue;
+                    case '$': sbEncoded.Append("%24"); continue;
+                    case '%': sbEncoded.Append("%25"); continue;
+                    case '&': sbEncoded.Append("%26"); continue;
+                    case '|': sbEncoded.Append("%7C"); continue;
+                    case '@': sbEncoded.Append("%40"); continue;
+                    case '\\': sbEncoded.Append("%5C"); continue;
+                    case '/': sbEncoded.Append("%2F"); continue;
+                    case '[': sbEncoded.Append("%5B"); continue;
+                    case ']': sbEncoded.Append("%5D"); continue;
+                    case '{': sbEncoded.Append("%7B"); continue;
+                    case '}': sbEncoded.Append("%7D"); continue;
+                    case '<': sbEncoded.Append("%3C"); continue;
+                    case '>': sbEncoded.Append("%3E"); continue;
+                    case '+': sbEncoded.Append("%2B"); continue;
+                    case '=': sbEncoded.Append("%3D"); continue;
+                    case '^': sbEncoded.Append("%5E"); continue;
+                    case '~': sbEncoded.Append("%7E"); continue;
+                    case '"': sbEncoded.Append("%22"); continue;
+                    case '\'': sbEncoded.Append("%27"); continue;
+                    case '`': sbEncoded.Append("%60"); continue;
+                    case ';': sbEncoded.Append("%3B"); continue;
+                    case ':': sbEncoded.Append("%3A"); continue;
+                    case ',': sbEncoded.Append("%2C"); continue;
+                }
+
+                var chrString = Uri.EscapeUriString(chr.ToString());
+                sbEncoded.Append(chrString);
+            }
+
+            return sbEncoded.ToString();
+        }
+
+        #endregion
 
     }
 }
