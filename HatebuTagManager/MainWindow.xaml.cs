@@ -246,7 +246,8 @@ namespace HatebuTagManager
             {
                 if (apiClient.LastError != null)
                 {
-                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}");
+                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    apiClient.ResetLastError(); // 次の処理のために初期化
                 }
             }
             else
@@ -281,7 +282,8 @@ namespace HatebuTagManager
             {
                 if (apiClient.LastError != null)
                 {
-                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}");
+                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    apiClient.ResetLastError(); // 次の処理のために初期化
                 }
             }
             else
@@ -382,6 +384,8 @@ namespace HatebuTagManager
 
         private bool PrepareProc(string timeString, string procName)
         {
+            if (CheckBookmarksInfo(timeString) == false) return false;
+
             var retUserChoice = MessageBox.Show($"※この処理を実行するとやり直しできないので慎重に選んでください。\n\n" +
                 $"処理完了までにかかる予測時間は「{timeString}」です。\n\n進めてもよいでしょうか？",
                 procName, MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
@@ -400,6 +404,8 @@ namespace HatebuTagManager
 
         private void FinalizeProc(string info)
         {
+            if (CheckBookmarksInfo(info) == false) return;
+
             string dataFilePath = GetLogFileNmae();
             File.WriteAllText(dataFilePath, info, Encoding.UTF8);
             this.txtboxProcResult.Text = $"処理結果はファイルに保存しました。\n{dataFilePath}\nを参照してください。";
@@ -417,6 +423,24 @@ namespace HatebuTagManager
             this.txtblockApiStatus.Background = todoBrush;
             
             IsProcessing = false;
+        }
+
+        private bool CheckBookmarksInfo(string info)
+        {
+            if (String.IsNullOrEmpty(info))
+            {
+                if (String.IsNullOrEmpty(apiClient.LastErrTitle))
+                {
+                    MessageBox.Show($"内部エラーによりブックマーク情報が取得できませんでした。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                else
+                {
+                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    apiClient.ResetLastError(); // 次の処理のために初期化
+                }
+                return false;
+            }
+            return true;
         }
 
         private string GetLogFileNmae()

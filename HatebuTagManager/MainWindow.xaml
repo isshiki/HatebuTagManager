@@ -30,7 +30,7 @@
                 <CheckBox x:Name="chckboxOpenDataFolder" Content="実行後にデータファイルを開く" HorizontalAlignment="Left" Margin="10,47,0,0" VerticalAlignment="Top" Width="161" IsChecked="True"/>
                 <Button x:Name="btnGetAllBookmaks" Content="すべてのブックマーク情報の取得" Margin="176,38,10,0" VerticalAlignment="Top" Height="32" Click="BtnGetAllBookmaks_Click"/>
                 <Label Content="URL:" HorizontalAlignment="Left" Margin="10,74,0,0" VerticalAlignment="Top" Width="60" HorizontalContentAlignment="Right"/>
-                <TextBox x:Name="txtboxOneUrl" Height="23" Margin="75,78,325,0" TextWrapping="Wrap" Text="https://www.itmedia.co.jp/news/articles/1907/18/news101.html" VerticalAlignment="Top"/>
+                <TextBox x:Name="txtboxOneUrl" Height="23" Margin="75,78,325,0" TextWrapping="Wrap" Text="https://blog.masahiko.info/entry/2020/04/03/184745" VerticalAlignment="Top"/>
                 <Button x:Name="btnGetOneBookmak" Content="左記URLへの1つのブックマーク情報の取得（テスト用）" Margin="0,75,10,0" VerticalAlignment="Top" Height="32" Click="BtnGetOneBookmak_Click" HorizontalAlignment="Right" Width="310"/>
                 <Label Content="取得結果:" HorizontalAlignment="Left" Margin="10,92,0,0" VerticalAlignment="Top" Width="161"/>
                 <TextBox x:Name="txtboxGotResult" Height="64" Margin="10,112,10,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" AcceptsReturn="True" HorizontalScrollBarVisibility="Visible" VerticalScrollBarVisibility="Visible"/>

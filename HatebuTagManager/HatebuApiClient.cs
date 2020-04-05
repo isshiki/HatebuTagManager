@@ -37,9 +37,15 @@ namespace HatebuTagManager
         private string jsonAllBookmarks = String.Empty;
         #endregion
 
-        #region エラー情報オブジェクト
+        #region エラー情報関連
         public Exception LastError;
-        public String LastErrTitle;
+        public string LastErrTitle;
+        public void ResetLastError()
+        {
+            // 初期化
+            LastErrTitle = "";
+            LastError = null;
+        }
         #endregion
 
         public string CurrentUserName { get; set; }  // 処理実行中のはてな「ユーザーID」
@@ -198,9 +204,9 @@ namespace HatebuTagManager
                 var title = linesAllData[indexTitle];
                 var url = linesAllData[indexURL];
                 var comment = linesAllData[indexComment];
-                //【14個掲載】機械学習に使える映画のデータセットまとめ | Lionbridge AI
-                //[機械学習]コメント
-                //https://lionbridge.ai/ja/datasets/movie-datasets-machine-learning/
+                //タイトル
+                //[タグ名]コメント
+                //https://blog.masahiko.info/entry/2020/04/03/184745
 
                 if (url.StartsWith("http") == false) break;
 
@@ -334,9 +340,9 @@ namespace HatebuTagManager
                     var response = await client.PostAsync($"https://bookmark.hatenaapis.com/rest/{API_VERSION}/my/bookmark" +
                         $"?url={hatebuUrl}" +
                         $"&comment={encodedCmnt}", // コンテンツのポストではなく、クエリパラメーターらしい...
-                        //$"&tags={tagsText}" + // 上に含めておけば問題ない（というかどう表現すればいいの？）
-                        //$"&private={(bookmarkItem.PrivateNotPublic ? "true" : "false")}",
-                        null);//content); // クエリパラメーターで指定するのでコンテンツは含めていない。
+                        //$"&tags={tagsText}" +    // 上のコメントに含めておけば指定不要（どう表現すればいいの？ "[タグ名1],[タグ名2]" のような形かな）
+                        //$"&private={(bookmarkItem.PrivateNotPublic ? "true" : "false")}", // 「公開｜非公開」は切り替えない
+                        null);                     //content); // クエリパラメーターで指定するのでコンテンツは含めていない。
                     var resultJson = await response.Content.ReadAsStringAsync();
                     if (resultJson.IndexOf("comment_raw") != -1)
                     {
@@ -355,10 +361,8 @@ namespace HatebuTagManager
                 }
                 catch (Exception ex)
                 {
-                    LastErrTitle = "ChangeTagNameでエラーが発生しました。";
-                    LastError = ex;
                     sbResult.Append($"【エラー: APIによるタグ更新処理中】{bookmarkItem.Url}［← 手動で削除してください］{ex.Message}\r\n");
-                    //return sbResult.ToString(); // 続行する
+                    // 続行する
                 }
 
                 if (cancelToken.IsCancellationRequested) return sbResult.ToString(); // 非同期のキャンセル指定を受け取る
@@ -382,7 +386,7 @@ namespace HatebuTagManager
             CreateHttpClient();
 
             var targetBookmarks = GetTargetBookmarks();
-            if (targetBookmarks == null) return sbResult.ToString();
+            if (targetBookmarks == null) return String.Empty;
 
             var doneUrls = new List<string>();
             var errorUrls = new List<string>();
@@ -435,10 +439,8 @@ namespace HatebuTagManager
                 }
                 catch (Exception ex)
                 {
-                    LastErrTitle = "DeleteBookmarksByTagNameでエラーが発生しました。";
-                    LastError = ex;
                     sbResult.Append($"【エラー: APIによるタグ指定削除処理中】{bookmarkItem.Url}［← 手動で削除してください］{ex.Message}\r\n");
-                    //return sbResult.ToString(); 続行する
+                    // 続行する
                 }
 
                 if (cancelToken.IsCancellationRequested) return sbResult.ToString(); // 非同期のキャンセル指定を受け取る
@@ -461,7 +463,7 @@ namespace HatebuTagManager
             CreateHttpClient();
 
             var targetBookmarks = GetTargetBookmarks();
-            if (targetBookmarks == null) return sbResult.ToString();
+            if (targetBookmarks == null) return String.Empty;
 
             var doneUrls = new List<string>();
             var errorUrls = new List<string>();
@@ -483,14 +485,13 @@ namespace HatebuTagManager
                     var json = await GetMyOneBookmark(bookmarkItem.Url);
                     if (String.IsNullOrEmpty(json) || (oneBookmark.Count() <= 0))
                     {
-                        LastErrTitle = "DeleteBookmarksByOlderDateにおける日付取得でエラーが発生しました。";
-                        LastError = new Exception(LastErrTitle);
                         if (errorUrls.Contains(bookmarkItem.Url) == false)
                         {
                             errorUrls.Add(bookmarkItem.Url);
                             var errUrl = RenameToSearch(bookmarkItem, CurrentUserName);
                             sbResult.Append($"【エラー: APIによる情報取得不可】( {bookmarkItem.Url} )  {errUrl} ［← 手動で削除してください］\r\n");
                         }
+                        // 続行する
                         continue;
                     }
                     createdDate = oneBookmark[0].CreatedDatetime;
@@ -532,10 +533,8 @@ namespace HatebuTagManager
                 }
                 catch (Exception ex)
                 {
-                    LastErrTitle = "DeleteBookmarksByOlderDateでエラーが発生しました。";
-                    LastError = ex;
                     sbResult.Append($"【エラー: APIによる日付指定削除処理中】{bookmarkItem.Url}［← 手動で削除してください］{ex.Message}\r\n");
-                    //return sbResult.ToString(); // 続行する
+                    // 続行する
                 }
 
                 if (cancelToken.IsCancellationRequested) return sbResult.ToString(); // 非同期のキャンセル指定を受け取る
@@ -595,7 +594,7 @@ namespace HatebuTagManager
             else if ((listBookmarks == null) || (listBookmarks.Count() <= 0))
             {
                 LastErrTitle = "先に、すべてのブックマーク、もしくは1つのブックマークを取得してください。";
-                LastError = new Exception(LastErrTitle);
+                LastError = new Exception("【ステップ2】を実行してください。"); //(new StackTrace(true).ToString());
                 return null;
             }
             else
