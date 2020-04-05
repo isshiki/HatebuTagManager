@@ -3,6 +3,7 @@ using Codeplex.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -148,7 +149,7 @@ namespace HatebuTagManager
 
         #region 【ステップ2】全ブックマークデータの取得
 
-        public async Task<string> GetMyAllBookmarks()
+        public async Task<string> GetMyAllBookmarks(string exportedBookmarkHtml = null)
         {
             ResetBookmarks();
             ResetOneBookmark();
@@ -187,24 +188,112 @@ namespace HatebuTagManager
             CurrentUserName = userName;
 
             var textAllData = String.Empty;
-            try
+            if (String.IsNullOrEmpty(exportedBookmarkHtml))
             {
-                textAllData = await client.GetStringAsync($"https://b.hatena.ne.jp/{userName}/search.data"); // データ
+                try
+                {
+                    textAllData = await client.GetStringAsync($"https://b.hatena.ne.jp/{userName}/search.data"); // データ
+                }
+                catch (Exception ex)
+                {
+                    LastErrTitle = "GetMyAllBookmarks-search.dataでエラーが発生しました。";
+                    LastError = ex;
+                    return String.Empty;
+                }
+
+                SaveAllBookmarksFromSearch(textAllData, listBookmarks);
             }
-            catch (Exception ex)
+            else
             {
-                LastErrTitle = "GetMyAllBookmarks-search.dataでエラーが発生しました。";
-                LastError = ex;
-                return String.Empty;
+                try
+                {
+                    textAllData = File.ReadAllText(exportedBookmarkHtml); // ブックマーク形式HTMLデータ
+                }
+                catch (Exception ex)
+                {
+                    LastErrTitle = "GetMyAllBookmarks-read.textでエラーが発生しました。";
+                    LastError = ex;
+                    return String.Empty;
+                }
+
+                if (SaveAllBookmarksFromHtml(textAllData, listBookmarks) == false)
+                {
+                    LastErrTitle = "GetMyAllBookmarks-analyze.htmlでエラーが発生しました。";
+                    LastError = new Exception("エクスポート（ブックマーク形式）のデータかお確かめください。ファイルフォーマットが異なります。");
+                    return String.Empty;
+                }
             }
 
-            SaveAllBookmarks(textAllData, listBookmarks);
             jsonAllBookmarks = textAllData;
 
             return textAllData;
         }
 
-        private static void SaveAllBookmarks(string textAllData, List<Bookmark> bookmarkList)
+        private static string GetUnescapedValue(Match m)
+        {
+            if (m.Success == false) return String.Empty;
+            if (m.Groups.Count <= 1) { Debug.Assert(false, "コードの呼び出し方を間違えているのでは？"); return String.Empty; }
+            var content = m.Groups[1].Value;
+            if (String.IsNullOrEmpty(content)) return String.Empty;
+            return content.Replace("&lt;", "<").Replace("&gt;", ">").Replace("&amp;", "&").Replace("&quot;", "\"").Replace("&#39;", "'").Replace("&nbsp;", " ");
+        }
+
+        private static bool SaveAllBookmarksFromHtml(string textAllData, List<Bookmark> bookmarkList)
+        {
+            var linesAllData = textAllData.Replace("\r\n", " ").Replace("\r", " ").Replace("\n", " ").Replace("\t", " ").
+                Replace("  <DT>", "<DT>").Replace("  <DD>", "<DD>").
+                Replace("<DT>", "\n<DT>").Replace("<DD>", "\n<DD>").
+                Replace("</DL>", "\n</DL>").Split('\n');
+            var linesLength = linesAllData.Length;
+            var bookmarksLength = (linesLength - 2) / 2;
+            for (var i = 0; i < bookmarksLength; i++)
+            {
+                var index = i * 2 + 1;
+                var dt = linesAllData[index].Trim();
+                if (dt.StartsWith("<DT>", StringComparison.OrdinalIgnoreCase) == false) return false;
+                var dd = linesAllData[index + 1].Trim();
+                if (dd.StartsWith("<DD>", StringComparison.OrdinalIgnoreCase) == false) return false;
+
+                // <DT><A HREF="★" ADD_DATE="★" PRIVATE="★" LAST_VISIT="★" TAGS="タグ">タイトル</A>
+                var url = GetUnescapedValue(Regex.Match(dt, "HREF=\"([^\\\"]*?)\"", RegexOptions.IgnoreCase));
+                var adddate = GetUnescapedValue(Regex.Match(dt, "ADD_DATE=\"([^\\\"]*?)\"", RegexOptions.IgnoreCase));
+                var isPrivate = (GetUnescapedValue(Regex.Match(dt, "PRIVATE=\"([^\\\"]*?)\"", RegexOptions.IgnoreCase)) == "1");
+                var tags = GetUnescapedValue(Regex.Match(dt, "TAGS=\"([^\\\"]*?)\"", RegexOptions.IgnoreCase));
+                var title = GetUnescapedValue(Regex.Match(dt, ">([^<]*?)</A>", RegexOptions.IgnoreCase));
+                var comment = GetUnescapedValue(Regex.Match(dd, "<DD>(.*?)$", RegexOptions.IgnoreCase));
+
+                if (url.StartsWith("http") == false) break; // 正常に読み込めていない可能性
+
+                DateTime pubdate;
+                long longDate;
+                var gotDate = long.TryParse(adddate, out longDate);
+                if (gotDate)
+                {
+                    pubdate = DateTimeOffset.FromUnixTimeSeconds(longDate).ToLocalTime().DateTime;
+                }
+                else
+                {
+                    pubdate = new DateTime();
+                }
+
+                var tagsArray = tags.Split(',');
+                var tagText = "[" + String.Join("][", tagsArray) + "]";
+                var tagList = tagsArray.Select(tag => $"[{tag}]").ToList();
+
+                var bkmark = new Bookmark();
+                bkmark.Title = title;
+                bkmark.Url = url;
+                bkmark.CommentWithTags = tagText + comment;  // タグ込みで100文字まで
+                bkmark.Tags = tagList;  // 最大10個まで。コメントの先頭に付ける
+                if (gotDate) bkmark.CreatedDatetime = pubdate;
+                bkmark.PrivateNotPublic = isPrivate;
+                bookmarkList.Add(bkmark);
+            }
+
+            return true;
+        }
+
+        private static void SaveAllBookmarksFromSearch(string textAllData, List<Bookmark> bookmarkList)
         {
             var linesAllData = textAllData.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
             var linesLength = linesAllData.Length;
@@ -215,13 +304,12 @@ namespace HatebuTagManager
                 var indexComment = indexTitle + 1;
                 var indexURL = indexTitle + 2;
 
-                var title = linesAllData[indexTitle];
-                var url = linesAllData[indexURL];
-                var comment = linesAllData[indexComment];
                 //タイトル
                 //[タグ名]コメント
                 //https://blog.masahiko.info/entry/2020/04/03/184745
-
+                var title = linesAllData[indexTitle];
+                var url = linesAllData[indexURL];
+                var comment = linesAllData[indexComment];
                 if (url.StartsWith("http") == false) break;
 
                 var matches = Regex.Matches(comment, "\\[([^\\]]*?)\\]");
@@ -639,11 +727,11 @@ namespace HatebuTagManager
             return timespanString;
         }
 
-        public string EstimateTimeForAllItems()
+        public string EstimateTimeForOlderThan(DateTime olderDate)
         {
             var targetBookmarks = GetTargetBookmarks();
             if (targetBookmarks == null) return String.Empty;
-            int count = targetBookmarks.Count();
+            int count = targetBookmarks.Count(x => (x.CreatedDatetime == null) || (x.CreatedDatetime.Year < 1990) || (x.CreatedDatetime < olderDate));
             int secPerCall = WAIT_SEC_PER_CALL + PROC_SEC_PER_CALL;
             int totalSeconds = count * secPerCall;
             var TotalTimeSpan = new TimeSpan(0, 0, totalSeconds);

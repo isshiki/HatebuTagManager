@@ -1,5 +1,7 @@
 ﻿using AsyncOAuth;
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -45,7 +47,27 @@ namespace HatebuTagManager
             Color.FromRgb(255, 255, 255), Color.FromRgb(255, 255, 0), new Point(0, 0), new Point(1, 0));
         #endregion
 
+        #region 非公開ブックマークを含めてすべてのブックマーク対応
+        private const string dragDropMsg = "「非公開」ブックマークも含めて完全にすべてのブックマークを取得するには、\n" +
+            "https://b.hatena.ne.jp/-/my/config/data_management\n" +
+            "で全データをエクスポート（ブックマーク形式）して、そのデータをここにドラッグ＆ドロップしてください。";
+        #endregion
+
+        #region はてなブックマークAPIクライアント関連
+
         private HatebuApiClient apiClient;      // はてなブックマークAPIクライアント
+
+        private bool CheckApiClient()
+        {
+            if (apiClient == null)
+            {
+                MessageBox.Show("先に【 ステップ 1 】を実行してください。");
+                return false;
+            }
+            return true;
+        }
+
+        #endregion
 
         #region 処理尾の実行中／キャンセルを管理するオブジェクト
         public bool IsProcessing { get; set; }  // 処理を実行中かどうか
@@ -71,6 +93,8 @@ namespace HatebuTagManager
 
             var pathDesktop = System.Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             this.txtboxDataFolderPath.Text = Path.Combine(pathDesktop, NAME_DATA_FOLDER);
+
+            this.txtboxGotResult.Text = dragDropMsg;
         }
 
         #endregion
@@ -234,11 +258,12 @@ namespace HatebuTagManager
 
         private async void BtnGetAllBookmaks_Click(object sender, RoutedEventArgs e)
         {
+            if (CheckApiClient() == false) return;
+
             string dataFolderPath = GetDataDirectory();
             if (dataFolderPath == null) return;
 
-
-            this.txtblockApiStatus.Text = "★★★すべてのブックマークを取得しています。お待ちください。★★★";
+            this.txtblockApiStatus.Text = "★★★すべての「公開」ブックマークを取得しています。お待ちください。★★★";
             this.txtblockApiStatus.Background = allModeBrush;
 
             var info = await apiClient.GetMyAllBookmarks();
@@ -252,7 +277,41 @@ namespace HatebuTagManager
             }
             else
             {
-                this.txtblockApiStatus.Text = "すべてのブックマークを取得しました。";
+                this.txtblockApiStatus.Text = "すべての「公開」ブックマークを取得しました。";
+                this.txtblockApiStatus.Background = doneBrush;
+
+                var dataFilePath = Path.Combine(dataFolderPath, NAME_DATA_FILE);
+                File.WriteAllText(dataFilePath, info, Encoding.UTF8);
+                this.txtboxGotResult.Text = $"情報量が多すぎる場合があるため別ファイルに保存しました。\n{dataFilePath}\nを参照してください。";
+                if (this.chckboxOpenDataFolder.IsChecked == true)
+                {
+                    AppUtility.OpenByTextEditor(dataFilePath);
+                }
+                //MessageBox.Show("成功！");
+            }
+        }
+
+
+        private async void GetAllBookmaksFromFile(string exportedBookmarkHtml)
+        {
+            string dataFolderPath = GetDataDirectory();
+            if (dataFolderPath == null) return;
+
+            this.txtblockApiStatus.Text = "★★★すべての「公開＆★非公開★」ブックマークを取得しています。お待ちください。★★★";
+            this.txtblockApiStatus.Background = allModeBrush;
+
+            var info = await apiClient.GetMyAllBookmarks(exportedBookmarkHtml);
+            if (String.IsNullOrEmpty(info))
+            {
+                if (apiClient.LastError != null)
+                {
+                    MessageBox.Show($"{apiClient.LastErrTitle}\n\n【内容】{apiClient.LastError.Message}", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    apiClient.ResetLastError(); // 次の処理のために初期化
+                }
+            }
+            else
+            {
+                this.txtblockApiStatus.Text = "すべての「公開＆★非公開★」ブックマークを取得しました。";
                 this.txtblockApiStatus.Background = doneBrush;
 
                 var dataFilePath = Path.Combine(dataFolderPath, NAME_DATA_FILE);
@@ -272,9 +331,10 @@ namespace HatebuTagManager
 
         private async void BtnGetOneBookmak_Click(object sender, RoutedEventArgs e)
         {
+            if (CheckApiClient() == false) return;
+
             this.txtblockApiStatus.Text = "★★★1つのブックマークを取得しています。お待ちください。★★★";
             this.txtblockApiStatus.Background = oneModeBrush;
-
 
             var url = this.txtboxOneUrl.Text;
             var info = await apiClient.GetMyOneBookmark(url);
@@ -312,7 +372,7 @@ namespace HatebuTagManager
             {
                 this.txtblockApiStatus.Text = "先に、すべてのブックマークを取得してください。";
                 this.txtblockApiStatus.Background = null;
-                this.txtboxGotResult.Text = String.Empty;
+                this.txtboxGotResult.Text = dragDropMsg;
             }
             btnGetOneToAllBookmark.IsEnabled = false;
         }
@@ -323,6 +383,8 @@ namespace HatebuTagManager
 
         private async void buttonChangeTag_Click(object sender, RoutedEventArgs e)
         {
+            if (CheckApiClient() == false) return;
+
             var fromTagName = this.textboxFromTagName.Text;
             if (String.IsNullOrEmpty(fromTagName))
             {
@@ -346,6 +408,8 @@ namespace HatebuTagManager
 
         private async void buttonDeleteBookmarkByTag_Click(object sender, RoutedEventArgs e)
         {
+            if (CheckApiClient() == false) return;
+
             var delTagName = this.textboxDeleteTagName.Text;
             if (String.IsNullOrEmpty(delTagName))
             {
@@ -363,6 +427,8 @@ namespace HatebuTagManager
 
         private async void buttonDeleteBookmarkByOlderDate_Click(object sender, RoutedEventArgs e)
         {
+            if (CheckApiClient() == false) return;
+
             var olderDate = this.datepickerOlderDate.SelectedDate;
             if ((olderDate == null) || (olderDate < new DateTime(1990, 1, 1)))
             {
@@ -370,7 +436,7 @@ namespace HatebuTagManager
                 return;
             }
 
-            var timeString = apiClient.EstimateTimeForAllItems();
+            var timeString = apiClient.EstimateTimeForOlderThan((DateTime)olderDate);
             if (PrepareProc(timeString, "日付による削除") == false) return;
 
             var info = await apiClient.DeleteBookmarksByOlderDate((DateTime)olderDate, this.txtblockProcStatus, cancelToken);
@@ -419,9 +485,10 @@ namespace HatebuTagManager
 
             apiClient.ResetBookmarks();
             apiClient.ResetOneBookmark();
-            this.txtblockApiStatus.Text = $"［実行状況はここに表示されます］";
+            this.txtblockApiStatus.Text = "先に、すべてのブックマークを取得してください。";
             this.txtblockApiStatus.Background = todoBrush;
-            
+            this.txtboxGotResult.Text = dragDropMsg;
+
             IsProcessing = false;
         }
 
@@ -490,6 +557,66 @@ namespace HatebuTagManager
                 }
                 this.txtblockProcStatus.Text = $"「キャンセル中」です。複数の残処理の完了まで少しお待ちください。【処理中カウンター：{counter}】";
                 await Task.Delay(100);
+            }
+        }
+
+        #endregion
+
+        #region エクスポート（ブックマーク形式）データのドラッグ＆ドロップ処理
+
+        private void Window_Drop(object sender, DragEventArgs e)
+        {
+            if (CheckApiClient() == false) return;
+
+            var fileList = new List<string>();
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                fileList.AddRange(files);
+            }
+            else if (e.Data.GetDataPresent("UniformResourceLocator") ||
+                e.Data.GetDataPresent("UniformResourceLocatorW"))
+            {
+                string url = e.Data.GetData(DataFormats.Text).ToString();
+                fileList.Add(url);
+            }
+            var filePath = String.Empty;
+            switch (fileList.Count)
+            {
+                case 0:
+                    return;
+                case 1:
+                    filePath = fileList[0];
+                    break;
+                default:
+                    filePath = fileList[0];
+                    foreach (var fileOne in fileList)
+                    {
+                        if (fileOne.EndsWith(".bookmarks"))
+                        {
+                            filePath = fileOne;
+                            break;
+                        }
+                    }
+                    break;
+            }
+            if (String.IsNullOrEmpty(filePath) == false)
+            {
+                this.txtboxGotResult.Text = filePath;
+                this.txtboxGotResult.Focus();
+                e.Handled = true;
+                GetAllBookmaksFromFile(filePath);
+            }
+        }
+
+        private void Window_PreviewDragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop) ||
+                e.Data.GetDataPresent("UniformResourceLocator") ||
+                e.Data.GetDataPresent("UniformResourceLocatorW"))
+            {
+                e.Effects = DragDropEffects.Copy;
+                e.Handled = true;
             }
         }
 
