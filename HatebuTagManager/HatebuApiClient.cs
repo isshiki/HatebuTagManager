@@ -26,14 +26,13 @@ namespace HatebuTagManager
         // OAUTH                = "https://www.hatena.com/oauth/initiate";
         // 認証                 = "https://www.hatena.ne.jp/oauth/authorize";
         // トークン             = "https://www.hatena.com/oauth/token";
-        // アプリケーション情報 = "http://n.hatena.com/applications/my.json"
+        // はてなのユーザー情報 = "http://n.hatena.com/applications/my.json"
         // ### [はてなブックマーク ブックマーク API - Hatena Developer Center](http://developer.hatena.ne.jp/ja/documents/bookmark/apis/rest/bookmark)
+        // はてブのユーザー情報 = "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my";
         // ブクマ取得（GET）    = "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my/bookmark?url={urlEnc}";
         // ブクマ追加更新（POS）= "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my/bookmark?url={hatebuUrl}&comment={encodedCmnt}";
         // ブクマ削除（DELETE） = "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my/bookmark?url={hatebuUrl}";
-        // ユーザー情報（GET）  = "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my";
         #endregion
-
 
         #region はてなブックマークAPIのOAuth関連オブジェクト
         private readonly string oAuthConsumerKey;
@@ -156,13 +155,14 @@ namespace HatebuTagManager
 
             CreateHttpClient();
 
-            //var myjson = await client.GetStringAsync("http://n.hatena.com/applications/my.json");  // アプリケーション情報
+            //jsonUserInfo = await client.GetStringAsync("http://n.hatena.com/applications/my.json");  // 「はてな」ユーザー情報
             // {"profile_image_url":"https://cdn.profile-image.st-hatena.com/users/{user-id}/profile.gif","url_name":"{user-id}","display_name":"{表示名}"}
+            // 「はてなブックマーク」ユーザー情報の方が、ブックマークに関する情報が得られる
 
             var jsonUserInfo = String.Empty;
             try
             {
-                jsonUserInfo = await client.GetStringAsync($"https://bookmark.hatenaapis.com/rest/{API_VERSION}/my"); // ユーザー情報
+                jsonUserInfo = await client.GetStringAsync($"https://bookmark.hatenaapis.com/rest/{API_VERSION}/my"); // 「はてなブックマーク」ユーザー情報
             }
             catch (Exception ex)
             {
