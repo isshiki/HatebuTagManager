@@ -21,6 +21,20 @@ namespace HatebuTagManager
         private const string API_VERSION = "1";
         #endregion
 
+        #region はてなブックマークREST APIの情報まとめ
+        // ### [はてなの OAuth アプリケーション用 API - Hatena Developer Center](http://developer.hatena.ne.jp/ja/documents/nano/apis/oauth)
+        // OAUTH                = "https://www.hatena.com/oauth/initiate";
+        // 認証                 = "https://www.hatena.ne.jp/oauth/authorize";
+        // トークン             = "https://www.hatena.com/oauth/token";
+        // アプリケーション情報 = "http://n.hatena.com/applications/my.json"
+        // ### [はてなブックマーク ブックマーク API - Hatena Developer Center](http://developer.hatena.ne.jp/ja/documents/bookmark/apis/rest/bookmark)
+        // ブクマ取得（GET）    = "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my/bookmark?url={urlEnc}";
+        // ブクマ追加更新（POS）= "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my/bookmark?url={hatebuUrl}&comment={encodedCmnt}";
+        // ブクマ削除（DELETE） = "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my/bookmark?url={hatebuUrl}";
+        // ユーザー情報（GET）  = "https://bookmark.hatenaapis.com/rest/{API_VERSION}/my";
+        #endregion
+
+
         #region はてなブックマークAPIのOAuth関連オブジェクト
         private readonly string oAuthConsumerKey;
         private readonly string oAuthConsumerSecret;
