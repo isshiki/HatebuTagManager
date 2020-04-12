@@ -10,6 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using System.Reflection;
+using System.Management;
 
 namespace HatebuTagManager
 {
@@ -80,6 +82,9 @@ namespace HatebuTagManager
         public MainWindow()
         {
             InitializeComponent();
+
+            var asmName = Assembly.GetExecutingAssembly().GetName();
+            this.Title = $"{asmName.Name} {asmName.Version}";
 
             IsProcessing = false;
             tokenSource = new CancellationTokenSource(); // 非同期処理をキャンセルるるための機能

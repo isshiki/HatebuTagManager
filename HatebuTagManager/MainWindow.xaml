@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:HatebuTagManager"
         mc:Ignorable="d"
-        Title="はてなブックマークのタグ変更／一括削除ツール" Height="850" Width="850" Loaded="Window_Loaded" Closing="Window_Closing" Drop="Window_Drop" AllowDrop="True" PreviewDragOver="Window_PreviewDragOver">
+        Title="はてなブックマークのタグ変更／一括削除ツール" Height="850" Width="850" Loaded="Window_Loaded" Closing="Window_Closing" Drop="Window_Drop" AllowDrop="True" PreviewDragOver="Window_PreviewDragOver" Icon="app.ico">
     <Grid>
         <GroupBox Header="【 ステップ 1 】 ログイン認証" Height="240" Margin="10,10,10,0" VerticalAlignment="Top">
             <Grid>
